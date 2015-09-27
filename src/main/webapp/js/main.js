@@ -24,7 +24,7 @@ dataViz.PageEvent.prototype = {
 			var target = e.currentTarget;
 			if(target && target.id) {
 				var value = $('#' + target.id).html();
-				$('.timer-picker .selected').html(value);
+				$('.timer-picker .selected > span:first-child').html(value);
 				me._refreshDashboard(target.value);
 			}
 			me._hidePickerDropdown();
@@ -40,7 +40,15 @@ dataViz.PageEvent.prototype = {
 		return $('.timer-picker .dropdown').css('display') == 'block';
 	},
 	_refreshDashboard: function(duration) {
-		alert('refreshing dashboard with duration ' + duration);
+		var url = dataViz.Connection.buildUrl(duration);
+		dataViz.Connection.requestGet(url).then(function(e) {
+			if (e.errCode != 0) {
+				alert('get data error from server');
+			} else {
+				var items = e.items;
+				debugger
+			}
+		});
 	}
 }
 
