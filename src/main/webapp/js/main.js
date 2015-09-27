@@ -53,9 +53,8 @@ DataViz.PageEvent.prototype = {
 			if (e.errCode != 0) {
 				alert('get data error from server');
 			} else {
-				var items = e.items;
 				if (me._renderer) {
-					me._renderer.render(items);
+					me._renderer.render(e.items, duration);
 				}
 			}
 		});
@@ -76,7 +75,43 @@ DataViz.DataRenderer = function() {
 
 DataViz.DataRenderer.prototype = {
 
-	render: function(data) {
+	_process: function(data, duration) {
+		var maxValue = 0;
+		for (var key in data) {
+			var items = data[key];
+			items.forEach(function(e) {
+				if (maxValue < e.value) {
+					maxValue = e.value;
+				}
+			});
+		}
+		this._verticalScale =  this._height / maxValue;
+		this._horizontalScale = this._width / duration;
+	},
+	
+	_drawDimension: function(items, duration) {
+		debugger
+		var context = this._context;
+		context.strokeStyle = 'red';
+		context.beginPath();
+		var verticalScale = this._verticalScale * 0.8;
+		for (var i = 0; i < duration; i++) {
+			if (i == 0) {
+				context.moveTo(i * this._horizontalScale, this._height - items[i].value * verticalScale);
+			} else {
+				context.lineTo(i * this._horizontalScale, this._height - items[i].value * verticalScale);
+			}
+		}
+		context.stroke();
+	},
+
+	_drawDimensions: function(data, duration) {
+		for (var key in data) {
+			this._drawDimension(data[key], duration);
+		}
+	},
+
+	render: function(data, duration) {
 		if (!this._context) {
 			var canvas = document.getElementById('metricsCanvas');
 			var width = $('.container').width();
@@ -85,13 +120,16 @@ DataViz.DataRenderer.prototype = {
 			this._width = canvas.width;
 			this._height = canvas.height;
 		}
-		debugger
 		this.clear();
+		this._process(data, duration);
+		this._drawDimensions(data, duration);
+		/*
 		var context = this._context;
 		context.strokeStyle = "red";
 		context.strokeRect(10, 10, 190, 100);
 		context.fillStyle = "blue";
         context.fillRect(110,110,100,100);
+        */
 	},
 
 	clear: function() {
