@@ -1,12 +1,14 @@
-dataViz = dataViz || {};
+DataViz = DataViz || {};
 
-dataViz.PageEvent = function() {
+DataViz.PageEvent = function() {
 	this._init();
+	this._renderer;
 }
 
-dataViz.PageEvent.prototype = {
+DataViz.PageEvent.prototype = {
 	_init: function() {
 		this._registerEvent();
+		this._initialRequest();
 	},
 
 	_registerEvent: function() {
@@ -30,6 +32,11 @@ dataViz.PageEvent.prototype = {
 			me._hidePickerDropdown();
 		});
 	},
+
+	_initialRequest: function() {
+		this._refreshDashboard(300);
+	},
+
 	_showPickerDropdown: function() {
 		$('.timer-picker .dropdown').slideDown('slow');;
 	},
@@ -40,18 +47,62 @@ dataViz.PageEvent.prototype = {
 		return $('.timer-picker .dropdown').css('display') == 'block';
 	},
 	_refreshDashboard: function(duration) {
-		var url = dataViz.Connection.buildUrl(duration);
-		dataViz.Connection.requestGet(url).then(function(e) {
+		var me = this;
+		var url = DataViz.Connection.buildUrl(duration);
+		DataViz.Connection.requestGet(url).then(function(e) {
 			if (e.errCode != 0) {
 				alert('get data error from server');
 			} else {
 				var items = e.items;
-				debugger
+				if (me._renderer) {
+					me._renderer.render(items);
+				}
 			}
 		});
+	},
+	registerRenderer: function(renderer) {
+		this._renderer = renderer;
+	},
+	clearRenderer: function() {
+		this._renderer = undefined;
+	}
+}
+
+DataViz.DataRenderer = function() {
+	this._context = undefined;
+	this._width = undefined;
+	this._height = undefined;
+}
+
+DataViz.DataRenderer.prototype = {
+
+	render: function(data) {
+		if (!this._context) {
+			var canvas = document.getElementById('metricsCanvas');
+			var width = $('.container').width();
+			canvas.width = width;
+			this._context = canvas.getContext('2d');
+			this._width = canvas.width;
+			this._height = canvas.height;
+		}
+		debugger
+		this.clear();
+		var context = this._context;
+		context.strokeStyle = "red";
+		context.strokeRect(10, 10, 190, 100);
+		context.fillStyle = "blue";
+        context.fillRect(110,110,100,100);
+	},
+
+	clear: function() {
+		if (this._context) {
+			this._context.clearRect(0, 0, this._width, this._height);
+		}
 	}
 }
 
 $(document).ready(function(e) {
-	var pageEvent = new dataViz.PageEvent();
+	var pageEvent = new DataViz.PageEvent();
+	var renderer = new DataViz.DataRenderer();
+	pageEvent.registerRenderer(renderer);
 });

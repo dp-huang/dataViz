@@ -6,5 +6,5 @@ package dataviz.util;
 public class Constants {
 
     /** The max points supported **/
-    public static final int MAX_POINTS = 1000;
+    public static final int MAX_POINTS = 100000;
 }

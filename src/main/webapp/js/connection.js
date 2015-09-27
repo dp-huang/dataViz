@@ -1,9 +1,11 @@
-dataViz = {};
+DataViz = {};
 
-dataViz.Connection = {
+DataViz.Connection = {
 	
 	buildUrl: function(duration) {
 		var now = Math.round(new Date().getTime() / 1000);
+		//temp
+		now = 1443355867;
 		var start = now - duration;
 		var defaultInterval = 5;
 		var url = '/api/metrics/metric?start=' + start + '&end=' + now + '&interval=' + defaultInterval;
