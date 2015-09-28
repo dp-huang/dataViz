@@ -56,3 +56,30 @@ body {
 	background-color: #33b5e5;
 	color: #fff;
 }
+
+#metricsTooltip {
+	position: absolute;
+	height: 25px;
+	border-radius: 6px;
+	color: #bbbfc2;
+	background-color: #303030;
+	display: none;
+}
+
+#metricsTooltip span {
+	margin: 10px;
+}
+
+#subtitle .line {
+	float: left;
+	border-top-width: 2px;
+	border-top-style: solid;
+	width: 20px;
+	margin-top: 10px;
+	margin-right: 2px;
+	margin-left: 10px;
+}
+#subtitle span {
+	float: left;
+	margin-left: 2px;
+}

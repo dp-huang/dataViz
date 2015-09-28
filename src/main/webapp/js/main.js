@@ -221,6 +221,18 @@ DataViz.DataRenderer.prototype = {
 
 	},
 
+	_createSubtitle: function() {
+		$('#subtitle').html('');
+		for (var key in this._lineColors) {
+			var color = this._lineColors[key];
+			color = this._convertColor(color);
+			var lineDiv = $('<div></div>').addClass('line').css('border-top-color', color);
+			$('#subtitle').append(lineDiv);
+			var keySpan = $('<span></span>').text(key).css('color', color);
+			$('#subtitle').append(keySpan);
+		}
+	},
+
 	_binarySearch: function(find, points, low, high) {
 		if(low <= high){
 			if(points[low].x == find) {
@@ -310,6 +322,7 @@ DataViz.DataRenderer.prototype = {
 	},
 
 	_clearCircle: function(index) {
+		this._hideTooltip();
 		$('#metricsCanvas').css('cursor', 'default')
 		var ctx = this._context;
 		//restore line
@@ -345,6 +358,44 @@ DataViz.DataRenderer.prototype = {
 		}
 	},
 
+	_dateToStr: function(date) {
+		var hour = date.getHours();
+		var min = date.getMinutes();
+		var seconds = date.getSeconds();
+		var displayHour = hour;
+		if (hour < 10) {
+			displayHour = '0' + hour;
+		}
+		var displayMin = min;
+		if (min < 10) {
+			displayMin = '0' + min;
+		}
+		var displaySecond = seconds;
+		if (seconds < 10) {
+			displaySecond = '0' + seconds;
+		}
+		return displayHour + ':' + displayMin + ':' + displaySecond;
+	},
+
+	_showTooltip: function(point) {
+		var x = point.x + 65;
+		var y = point.y + 60;
+		var value = Math.round((this._height - point.y) / this._verticalScale);
+		var date = new Date();
+		var ts = date.getTime() - 1000 * (this._duration - Math.round(point.x / this._horizontalScale));
+		date.setTime(ts);
+		var tsString = this._dateToStr(date);
+		var ts = Math.round(point.x / this._horizontalScale);
+		$('#metricsTooltip').css('display', 'block')
+			.css('left', x + 'px')
+			.css('top', y + 'px');
+		$('#metricsTooltip > span').text(value + ' @ ' + tsString);
+	},
+
+	_hideTooltip: function() {
+		$('#metricsTooltip').css('display', 'none');
+	},
+
 	pick: function(pos) {
 		var result = this._getPickPoint(pos);
 		var pickedIndex = result.index;
@@ -367,6 +418,7 @@ DataViz.DataRenderer.prototype = {
 		var point = this._screenPoints[lineKey][pickedIndex];
 		//draw circle
 		this._drawCircle(lineKey, point);
+		this._showTooltip(point);
 	},
 
 	render: function(data, duration) {
@@ -384,6 +436,7 @@ DataViz.DataRenderer.prototype = {
 		this._process(data);
 		this._drawDimensions(data);
 		this._showAxis();
+		this._createSubtitle();
 	},
 
 	clear: function() {
