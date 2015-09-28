@@ -10,12 +10,8 @@ body {
   user-select: none;
 }
 
-#metricsCanvas {
-
-}
-
 .navbar-right {
-	margin-right: 120px;
+	margin-right: 10px;
 }
 
 .timer-picker {
@@ -23,7 +19,7 @@ body {
 	margin: 0;
 	padding: 0;
 	height: 50px;
-	width: 150px;
+	width: 300px;
 }
 
 .timer-picker .selected {
@@ -31,6 +27,11 @@ body {
 	line-height: 40px;
 	padding-left: 15px;
 	cursor: pointer;
+}
+
+.timer-picker .refresh {
+	margin-left: 10px;
+	color: #a47e3c;
 }
 
 .timer-picker .dropdown {
