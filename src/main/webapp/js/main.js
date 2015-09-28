@@ -43,6 +43,7 @@ DataViz.PageEvent.prototype = {
 	_initialRequest: function() {
 		this._refreshDashboard(300);
 		var me = this;
+		
 		setInterval(function(e) {
 			me._refreshDashboard(me._duration);
 		}, 5000);
@@ -103,13 +104,25 @@ DataViz.DataRenderer = function() {
 	];
 	this._lineColors = {};
 	this._screenPoints = {};
+	this._dimentionFilter = {};
 }
 
 DataViz.DataRenderer.prototype = {
 
+	_isAvailableDimention: function(key) {
+		var value = this._dimentionFilter[key];
+		if (value === true || value === undefined) {
+			return true;
+		}
+		return false;
+	},
+
 	_process: function(data) {
 		var maxValue = 0;
 		for (var key in data) {
+			if (!this._isAvailableDimention(key)) {
+				continue;
+			}
 			var items = data[key];
 			items.forEach(function(e) {
 				if (maxValue < e.value) {
@@ -168,8 +181,11 @@ DataViz.DataRenderer.prototype = {
 			} else {
 				this._lineColors[key] = this._createRandomColor();
 			}
-			this._drawDimension(key, data[key], this._duration);
 			index++;
+			if (!this._isAvailableDimention(key)) {
+				continue;
+			}
+			this._drawDimension(key, data[key], this._duration);
 		}
 	},
 
@@ -223,12 +239,29 @@ DataViz.DataRenderer.prototype = {
 
 	_createSubtitle: function() {
 		$('#subtitle').html('');
+		var me = this;
 		for (var key in this._lineColors) {
 			var color = this._lineColors[key];
 			color = this._convertColor(color);
 			var lineDiv = $('<div></div>').addClass('line').css('border-top-color', color);
 			$('#subtitle').append(lineDiv);
-			var keySpan = $('<span></span>').text(key).css('color', color);
+			var keySpan = $('<span></span>').text(key).css('color', color).attr('key', key);
+			if (this._dimentionFilter[key] === false) {
+				keySpan.css('color', '#7f7f7f');
+			} else {
+				keySpan.css('color', color);
+			}
+			keySpan.click(function(e) {
+				var target = e.currentTarget;
+				var key = $(target).attr('key');
+				if (me._dimentionFilter[key] === false) {
+					me._dimentionFilter[key] = true;
+				} else {
+					me._dimentionFilter[key] = false;
+				}
+				//refresh dashboard
+				me.render(me._initialData, me._duration);
+			});
 			$('#subtitle').append(keySpan);
 		}
 	},
@@ -292,6 +325,9 @@ DataViz.DataRenderer.prototype = {
 		var lineKey = '';
 		var index = -1;
 		for (var key in this._screenPoints) {
+			if (!this._isAvailableDimention(key)) {
+				continue;
+			}
 			var result = this._getSingleLinePickPoint(pos, this._screenPoints[key]);
 			if (result.index == -1) {
 				continue;
@@ -316,7 +352,7 @@ DataViz.DataRenderer.prototype = {
 		ctx.arc(center.x, center.y, 8, 0, 2 * Math.PI, false);
 		ctx.lineWidth = 4;
 		var color = this._lineColors[lineKey];
-        ctx.strokeStyle = this._convertAlphaColor(color, 0.5);
+        ctx.strokeStyle = this._convertColor(color);
         ctx.stroke();
 		ctx.fill();
 	},
@@ -328,15 +364,18 @@ DataViz.DataRenderer.prototype = {
 		//restore line
 		var screenPoints = this._screenPoints[this._pickedLine];
 		var length = screenPoints.length;
+
 		var minIndex = (index - 10) < 0 ? 0 : index - 10;
 		var maxIndex = (index + 10) > length - 1 ? length - 1 : index + 10;
 
 		var startX = minIndex * this._horizontalScale;
-		var endX = (maxIndex - minIndex) * this._horizontalScale;
 
 		ctx.clearRect(minIndex * this._horizontalScale, 0, (maxIndex - minIndex) * this._horizontalScale, this._height + 10);
 		
 		for (var key in this._screenPoints) {
+			if (!this._isAvailableDimention(key)) {
+				continue;
+			}
 			var points = this._screenPoints[key];
 			var color = this._lineColors[key];
 			ctx.beginPath();
@@ -433,6 +472,7 @@ DataViz.DataRenderer.prototype = {
 		this._context.globalCompositeOperation = 'source-over';
 		this.clear();
 		this._duration = duration;
+		this._initialData = data;
 		this._process(data);
 		this._drawDimensions(data);
 		this._showAxis();

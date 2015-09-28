@@ -82,4 +82,5 @@ body {
 #subtitle span {
 	float: left;
 	margin-left: 2px;
+	cursor: pointer;
 }
