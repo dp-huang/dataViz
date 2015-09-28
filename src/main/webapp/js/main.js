@@ -1,4 +1,4 @@
-DataViz = DataViz || {};
+DataViz = window['DataViz'] || {};
 
 DataViz.PageEvent = function() {
 	this._init();
@@ -31,10 +31,26 @@ DataViz.PageEvent.prototype = {
 			}
 			me._hidePickerDropdown();
 		});
+		//register event on canvas
+
+		$('#metricsCanvas').on('mousemove', function(e) {
+			var pos = me._getMousePos(this, e);
+			if (me._renderer) {
+				me._renderer.pick(pos);
+			}
+		})
 	},
 
 	_initialRequest: function() {
 		this._refreshDashboard(300);
+	},
+
+	_getMousePos: function (canvas, evt) {
+	    var rect = canvas.getBoundingClientRect();
+	    return {
+	        x: evt.clientX - rect.left,
+	        y: evt.clientY - rect.top
+	    };
 	},
 
 	_showPickerDropdown: function() {
@@ -71,6 +87,7 @@ DataViz.DataRenderer = function() {
 	this._context = undefined;
 	this._width = undefined;
 	this._height = undefined;
+	this._screenPoints = [];
 }
 
 DataViz.DataRenderer.prototype = {
@@ -90,25 +107,143 @@ DataViz.DataRenderer.prototype = {
 	},
 	
 	_drawDimension: function(items, duration) {
-		debugger
-		var context = this._context;
-		context.strokeStyle = 'red';
-		context.beginPath();
+		var ctx = this._context;
+		ctx.beginPath();
+		ctx.strokeStyle = 'red';
+		ctx.lineWidth = 1;
 		var verticalScale = this._verticalScale * 0.8;
+		var screenPoints = [];
 		for (var i = 0; i < duration; i++) {
+			var xPos = i * this._horizontalScale;
+			var yPos = this._height - items[i].value * verticalScale;
 			if (i == 0) {
-				context.moveTo(i * this._horizontalScale, this._height - items[i].value * verticalScale);
+				ctx.moveTo(xPos, yPos);
 			} else {
-				context.lineTo(i * this._horizontalScale, this._height - items[i].value * verticalScale);
+				ctx.lineTo(xPos, yPos);
 			}
+			screenPoints.push({'x': xPos, 'y': yPos});
 		}
-		context.stroke();
+		ctx.stroke();
+		this._screenPoints = screenPoints;
 	},
 
 	_drawDimensions: function(data, duration) {
 		for (var key in data) {
 			this._drawDimension(data[key], duration);
 		}
+	},
+
+	_binarySearch: function(find, points, low, high) {
+		if(low <= high){
+			if(points[low].x == find) {
+				return low;
+			}
+			if(points[high].x == find) {
+				return high;
+			}
+			var mid = Math.ceil((high+low)/2);
+			if(Math.abs(points[mid].x - find) <= 2){
+				return mid;
+			} else if(points[mid].x > find) {
+				return this._binarySearch(find, points, low, mid - 1);
+			} else {
+				return this._binarySearch(find, points, mid + 1, high);
+			}
+		}
+		return -1;
+	},
+
+	_getPickPoint: function(pos) {
+		var screenPointLength = this._screenPoints.length;
+		var pickXIndex = this._binarySearch(pos.x, this._screenPoints, 0, screenPointLength - 1);
+		if (pickXIndex == -1) {
+			return -1;
+		}
+		if (pickXIndex == 0 || pickXIndex == this._screenPoints.length - 1) {
+			return -1;
+		}
+		var bestCandidateIndex = -1;
+		var minDistance = 10000000;
+		var maxStep = parseInt(10 / this._horizontalScale);
+		for (var i = pickXIndex - maxStep; i < pickXIndex + maxStep; i++) {
+			if (i < 0 || i > screenPointLength - 1) {
+				continue;
+			}
+			var dist = Math.sqrt((pos.x - this._screenPoints[i].x) * (pos.x - this._screenPoints[i].x) + (pos.y - this._screenPoints[i].y) * (pos.y - this._screenPoints[i].y));
+			if (dist < minDistance) {
+				minDistance = dist;
+				bestCandidateIndex = i;
+			}
+		}
+		//good enough
+		var delta = 8 / this._horizontalScale;
+		if (delta > 30) {
+			delta = 30;
+		}
+		if (minDistance <= delta) {
+			return bestCandidateIndex;
+		}
+		return -1;
+	},
+
+	_drawCircle: function(center) {
+		var ctx = this._context;
+		ctx.beginPath();
+		ctx.globalCompositeOperation="destination-over";
+		ctx.arc(center.x, center.y, 8, 0, 2 * Math.PI, false);
+		ctx.lineWidth = 4;
+        ctx.strokeStyle = 'green';
+        ctx.stroke();
+		ctx.fill();
+	},
+
+	_clearCircle: function(index) {
+		var ctx = this._context;
+		
+		//restore line
+		var length = this._screenPoints.length;
+		var minIndex = (index - 10) < 0 ? 0 : index - 10;
+		var maxIndex = (index + 10) > length - 1 ? length - 1 : index + 10;
+
+		var startX = minIndex * this._horizontalScale;
+		var endX = (maxIndex - minIndex) * this._horizontalScale;
+
+		ctx.clearRect(minIndex * this._horizontalScale, 0, (maxIndex - minIndex) * this._horizontalScale, this._height);
+		
+		ctx.beginPath();
+		ctx.strokeStyle = 'red';
+		ctx.lineWidth = 1;
+
+		for (var i = minIndex; i <= maxIndex; i++) {
+			var pos = this._screenPoints[i];
+			if (i == minIndex) {
+				ctx.moveTo(pos.x, pos.y);
+			} else {
+				ctx.lineTo(pos.x, pos.y);
+			}
+		}
+		ctx.stroke();
+	},
+
+	pick: function(pos) {
+		var pickedIndex = this._getPickPoint(pos);
+		if (pickedIndex == -1) {
+			if (this._pickedIndex) {
+				this._clearCircle(this._pickedIndex);
+				this._pickedIndex = undefined;
+			}
+			return;
+		}
+		if (this._pickedIndex == pickedIndex) {
+			return;
+		}
+		if (this._pickedIndex) {
+			this._clearCircle(this._pickedIndex);
+		}
+		this._pickedIndex = pickedIndex;
+		var point = this._screenPoints[pickedIndex];
+		//draw circle
+		this._drawCircle(point);
 	},
 
 	render: function(data, duration) {
@@ -118,18 +253,12 @@ DataViz.DataRenderer.prototype = {
 			canvas.width = width;
 			this._context = canvas.getContext('2d');
 			this._width = canvas.width;
-			this._height = canvas.height;
+			this._height = canvas.height - 10;
 		}
+		this._context.globalCompositeOperation = 'source-over';
 		this.clear();
 		this._process(data, duration);
 		this._drawDimensions(data, duration);
-		/*
-		var context = this._context;
-		context.strokeStyle = "red";
-		context.strokeRect(10, 10, 190, 100);
-		context.fillStyle = "blue";
-        context.fillRect(110,110,100,100);
-        */
 	},
 
 	clear: function() {

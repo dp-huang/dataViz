@@ -1,4 +1,4 @@
-DataViz = {};
+DataViz = window['DataViz'] || {};
 
 DataViz.Connection = {
 	
