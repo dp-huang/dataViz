@@ -1,11 +1,13 @@
+/**
+	The class is responsible for the data connection with backend
+**/
+
 DataViz = window['DataViz'] || {};
 
 DataViz.Connection = {
 	
 	buildUrl: function(duration) {
 		var now = Math.round(new Date().getTime() / 1000);
-		//temp
-		//now = 1443355867;
 		var start = now - duration;
 		var defaultInterval = 1;
 		var url = '/api/metrics/metric?start=' + start + '&end=' + now + '&interval=' + defaultInterval;
