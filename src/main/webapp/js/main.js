@@ -79,7 +79,7 @@ DataViz.PageEvent.prototype = {
 				alert('get data error from server');
 			} else {
 				if (me._renderer) {
-					me._renderer.render(e.items, duration);
+					me._renderer.render(e.items, duration, new Date());
 				}
 			}
 		});

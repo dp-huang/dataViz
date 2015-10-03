@@ -9,6 +9,7 @@ DataViz.DataRenderer = function() {
 	this._width = undefined;
 	this._height = undefined;
 	this._screenPoints = [];
+	//default line colors
 	this._colors = [
 		{ r: 126, g: 178, b: 109 },
 		{ r: 234, g: 184, b: 57 },
@@ -21,6 +22,8 @@ DataViz.DataRenderer = function() {
 	this._lineColors = {};
 	this._screenPoints = {};
 	this._dimentionFilter = {};
+	this._xAxisLines = [];
+	this._yAxisLines = [];
 }
 
 DataViz.DataRenderer.prototype = {
@@ -106,7 +109,7 @@ DataViz.DataRenderer.prototype = {
 	},
 
 	_showAxis: function() {
-		var date = new Date();
+		var date = this._currentDate;
 		var hour = date.getHours();
 		var min = date.getMinutes();
 		var seconds = date.getSeconds();
@@ -137,20 +140,51 @@ DataViz.DataRenderer.prototype = {
 				displayMin = '0' + min1;
 			}
 			var text = displayHour + ':' + displayMin;
-			ctx.fillText(text, endPosX - 20, this._height + 20);
+			ctx.fillText(text, endPosX - 30, this._height + 20);
 		}
 		//y axis
-		var valueEach = Math.floor(this._maxValue / 5);
+		var valueEach = this._maxValue / 5;
 
 		for (var i = 0; i < 5; i++) {
 			var startY = this._height - this._verticalScale * valueEach * i;
-			var text = valueEach * i;
-			ctx.fillText(text, 0, startY);
+			var text = Math.round(valueEach * i);
+			ctx.fillText(text, 0, startY + 4);
 		}
 
+		//show x,y axis lines
+		ctx.beginPath();
+		ctx.strokeStyle = '#bbbfc2';
+		ctx.lineWidth = 0.6;
+		this._xAxisLines = [];
+		this._yAxisLines = [];
+		for (var i = 0; i < 5; i++) {
+			var endPosX = this._width - endPadding - this._horizontalScale * i  * 60 * durationEach;
+			var startX = endPosX - 20;
+			var startY = this._verticalScale * valueEach;
+			var endX = endPosX - 20;
+			var endY = this._height;
+			ctx.moveTo(endPosX - 20, this._verticalScale * valueEach);
+			ctx.lineTo(endPosX - 20, this._height);
+			this._xAxisLines.push({
+				startX: startX,
+				startY: startY,
+				endX: endX,
+				endY: endY
+			});
+		}
+		for (var i = 0; i < 5; i++) {
+			var y = this._height - this._verticalScale * valueEach * i;
+			ctx.moveTo(0, y);
+			ctx.lineTo(this._width, y);
+			this._yAxisLines.push({
+				startX: 0,
+				startY: y,
+				endX: this._width,
+				endY: y
+			});
+		}
+		ctx.stroke();
 		ctx.fillStyle = '#000';
-
-
 	},
 
 	_createSubtitle: function() {
@@ -219,7 +253,7 @@ DataViz.DataRenderer.prototype = {
 			if (i < 0 || i > screenPointLength - 1) {
 				continue;
 			}
-			var dist = Math.sqrt((pos.x - screenPoints[i].x) * (pos.x - screenPoints[i].x) + (pos.y - screenPoints[i].y) * (pos.y - screenPoints[i].y));
+			var dist = (pos.x - screenPoints[i].x) * (pos.x - screenPoints[i].x) + (pos.y - screenPoints[i].y) * (pos.y - screenPoints[i].y);
 			if (dist < minDistance) {
 				minDistance = dist;
 				bestCandidateIndex = i;
@@ -290,9 +324,33 @@ DataViz.DataRenderer.prototype = {
 		var maxIndex = (index + delta) > length - 1 ? length - 1 : index + delta;
 
 		var startX = minIndex * this._horizontalScale;
-
 		ctx.clearRect(minIndex * this._horizontalScale, 0, (maxIndex - minIndex) * this._horizontalScale, this._height + 10);
-		
+		//redraw
+		this._restore(minIndex, maxIndex);
+	},
+
+	_restore: function(minIndex, maxIndex) {
+		var ctx = this._context;
+		var startX = minIndex * this._horizontalScale;
+		var endX = maxIndex * this._horizontalScale;
+
+		//restore axis lines
+		ctx.beginPath();
+		ctx.lineWidth = 0.6;
+		ctx.strokeStyle = '#bbbfc2';
+		this._xAxisLines.forEach(function(line) {
+			if (line.startX > startX && line.startX < endX) {
+				//redraw
+				ctx.moveTo(line.startX, line.startY);
+				ctx.lineTo(line.endX, line.endY);
+			}
+		});
+		this._yAxisLines.forEach(function(line) {
+			ctx.moveTo(startX, line.startY);
+			ctx.lineTo(endX, line.endY);
+		});
+		ctx.stroke();
+		//restore each dimensions
 		for (var key in this._screenPoints) {
 			if (!this._isAvailableDimention(key)) {
 				continue;
@@ -381,7 +439,7 @@ DataViz.DataRenderer.prototype = {
 		this._showTooltip(point);
 	},
 
-	render: function(data, duration) {
+	render: function(data, duration, date) {
 		if (!this._context) {
 			var canvas = document.getElementById('metricsCanvas');
 			var width = $('.container').width();
@@ -392,11 +450,14 @@ DataViz.DataRenderer.prototype = {
 		}
 		this._context.globalCompositeOperation = 'source-over';
 		this.clear();
+		if (date) {
+			this._currentDate = date;
+		}
 		this._duration = duration;
 		this._initialData = data;
 		this._process(data);
-		this._drawDimensions(data);
 		this._showAxis();
+		this._drawDimensions(data);
 		this._createSubtitle();
 	},
 
