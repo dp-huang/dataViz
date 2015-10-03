@@ -46,13 +46,15 @@ public class MetricsController {
             @PathVariable("metric") String metric,
             @RequestParam("start") Long start,
             @RequestParam("end") Long end,
-            @RequestParam("interval") Long interval) {
+            @RequestParam("interval") Long interval,
+            @RequestParam(value = "agg", required = false, defaultValue = "max") String agg) {
 
         GetMetricsRequest request = new GetMetricsRequest.Builder()
                 .metric(metric)
                 .start(start)
                 .end(end)
                 .interval(interval)
+                .agg(agg)
                 .build();
         return metricsService.getMetrics(request);
     }

@@ -3,6 +3,8 @@ package dataviz.service;
 import dataviz.dao.MetricsDao;
 import dataviz.dto.*;
 import dataviz.model.Metrics;
+import dataviz.service.aggregator.AggregatorFactory;
+import dataviz.service.aggregator.AggregatorStrategy;
 import dataviz.util.APIException;
 import dataviz.util.Constants;
 import dataviz.util.ErrorCodes;
@@ -12,7 +14,6 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -42,11 +43,6 @@ public class MetricsServiceImpl implements MetricsService {
                     || request.getInterval() <= 0) {
                 throw new APIException(ErrorCodes.DATE_RANGE_INVALIDATE);
             }
-            //if end is larger than current, use current timestamp
-            Long now = Math.round(System.currentTimeMillis() * 0.001);
-            if (request.getEnd() > now) {
-                request.setEnd(now);
-            }
             if (Math.round((request.getEnd() - request.getStart()) / request.getInterval()) > Constants.MAX_POINTS) {
                 throw new APIException(ErrorCodes.METRIC_TOO_MANY_POINTS);
             }
@@ -54,7 +50,7 @@ public class MetricsServiceImpl implements MetricsService {
             if (metrics.isEmpty()) {
                 return response;
             }
-            Map<String, List<MetricsItem>> metricsItems = splitMetrics(metrics, request.getStart(), request.getEnd(), request.getInterval());
+            Map<String, List<MetricsItem>> metricsItems = splitMetrics(metrics, request.getStart(), request.getEnd(), request.getInterval(), request.getAgg());
             response.setItems(metricsItems);
         } catch (APIException e) {
             response.setErrCode(e.getErrorCode());
@@ -96,71 +92,14 @@ public class MetricsServiceImpl implements MetricsService {
      * @param interval
      * @return
      */
-    private Map<String, List<MetricsItem>> splitMetrics(List<Metrics> metrics, Long start, Long end, Long interval) {
+    private Map<String, List<MetricsItem>> splitMetrics(List<Metrics> metrics, Long start, Long end, Long interval, String agg) {
         Map<String, List<Metrics>> map = metrics.stream().collect(Collectors.groupingBy(a -> a.getDimension()));
         Map<String, List<MetricsItem>> metricsResult = new HashMap<>();
+        AggregatorStrategy aggregator = AggregatorFactory.createAggregator(agg);
         map.keySet().stream().forEach((k) -> {
-            List<MetricsItem> dimensionMetrics = aggregateMetricsDimension(map.get(k), start, end, interval);
+            List<MetricsItem> dimensionMetrics = aggregator.aggregate(map.get(k), start, end, interval);
             metricsResult.put(k, dimensionMetrics);
         });
         return metricsResult;
-    }
-
-    /**
-     * aggregate one dimension metrics
-     * @param metrics
-     * @param start
-     * @param end
-     * @param interval
-     * @return
-     */
-    private List<MetricsItem> aggregateMetricsDimension(List<Metrics> metrics, Long start, Long end, Long interval) {
-        int startIndex = 0;
-        List<MetricsItem> metricsItems = new ArrayList<>();
-        boolean stop = false;
-        while(start < end) {
-            Long totalValue = 0L;
-            if (stop) {
-                MetricsItem metricsItem = new MetricsItem.Builder()
-                        .start(start)
-                        .end(start + interval)
-                        .value(0L)
-                        .build();
-                metricsItems.add(metricsItem);
-                start += interval;
-                continue;
-            }
-            for(int i = startIndex; i < metrics.size(); i++) {
-                Metrics m = metrics.get(i);
-
-                if (m.getTimestamp() < start + interval) {
-                    totalValue += m.getValue();
-                    if (i == metrics.size() - 1) {
-                        MetricsItem metricsItem = new MetricsItem.Builder()
-                                .start(start)
-                                .end(start + interval)
-                                .value(totalValue)
-                                .build();
-                        metricsItems.add(metricsItem);
-                        stop = true;
-                        start += interval;
-                        break;
-                    }
-                } else {
-                    //store metrics between previous interval
-                    MetricsItem metricsItem = new MetricsItem.Builder()
-                            .start(start)
-                            .end(start + interval)
-                            .value(totalValue)
-                            .build();
-                    metricsItems.add(metricsItem);
-
-                    startIndex = i;
-                    start += interval;
-                    break;
-                }
-            }
-        }
-        return metricsItems;
     }
 }

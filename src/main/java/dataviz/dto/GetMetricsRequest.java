@@ -16,6 +16,8 @@ public class GetMetricsRequest {
 
     private Long interval;
 
+    private String agg;
+
     public String getMetric() {
         return metric;
     }
@@ -48,11 +50,20 @@ public class GetMetricsRequest {
         this.interval = interval;
     }
 
+    public String getAgg() {
+        return agg;
+    }
+
+    public void setAgg(String agg) {
+        this.agg = agg;
+    }
+
     public static class Builder {
         private String metric;
         private Long start;
         private Long end;
         private Long interval;
+        private String agg;
 
         public Builder metric(String metric) {
             this.metric = metric;
@@ -65,12 +76,23 @@ public class GetMetricsRequest {
         }
 
         public Builder end(Long end) {
-            this.end = end;
+            //if end is larger than current, use current timestamp
+            Long now = Math.round(System.currentTimeMillis() * 0.001);
+            if (end > now) {
+                this.end = now;
+            } else {
+                this.end = end;
+            }
             return this;
         }
 
         public Builder interval(Long interval) {
             this.interval = interval;
+            return this;
+        }
+
+        public Builder agg(String agg) {
+            this.agg = agg;
             return this;
         }
 
@@ -80,6 +102,7 @@ public class GetMetricsRequest {
             request.setStart(start);
             request.setEnd(end);
             request.setInterval(interval);
+            request.setAgg(agg);
             return request;
         }
     }

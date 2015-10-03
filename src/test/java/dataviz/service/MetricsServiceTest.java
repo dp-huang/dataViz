@@ -58,6 +58,68 @@ public class MetricsServiceTest {
     }
 
     @Test
+    public void testMaxAggregator() {
+        List<Metrics> metrics = new ArrayList<>();
+        metrics.add(new Metrics.Builder()
+                .metric("metrics")
+                .dimension("dimension")
+                .value(100L)
+                .build());
+
+        metrics.add(new Metrics.Builder()
+                .metric("metrics")
+                .dimension("dimension")
+                .value(200L)
+                .build());
+        Mockito.when(metricsDao.getMetrics(Mockito.anyString(), Mockito.anyLong(), Mockito.anyLong())).thenReturn(metrics);
+
+        Long now = Math.round(System.currentTimeMillis() * 0.001);
+        GetMetricsRequest request = new GetMetricsRequest.Builder()
+                .metric("metrics")
+                .start(now - 5L)
+                .end(now)
+                .interval(10L)
+                .agg("max")
+                .build();
+
+        GetMetricsResponse response = metricsService.getMetrics(request);
+        Assert.assertEquals(response.getErrCode(), ErrorCodes.NO_ERROR);
+        Assert.assertEquals(response.getItems().size(), 1);
+        Assert.assertEquals(response.getItems().get("dimension").get(0).getValue().longValue(), 200l);
+    }
+
+    @Test
+    public void testAverageAggregator() {
+        List<Metrics> metrics = new ArrayList<>();
+        metrics.add(new Metrics.Builder()
+                .metric("metrics")
+                .dimension("dimension")
+                .value(100L)
+                .build());
+
+        metrics.add(new Metrics.Builder()
+                .metric("metrics")
+                .dimension("dimension")
+                .value(200L)
+                .build());
+        Mockito.when(metricsDao.getMetrics(Mockito.anyString(), Mockito.anyLong(), Mockito.anyLong())).thenReturn(metrics);
+
+        Long now = Math.round(System.currentTimeMillis() * 0.001);
+        GetMetricsRequest request = new GetMetricsRequest.Builder()
+                .metric("metrics")
+                .start(now - 5L)
+                .end(now)
+                .interval(10L)
+                .agg("average")
+                .build();
+
+        GetMetricsResponse response = metricsService.getMetrics(request);
+        Assert.assertEquals(response.getErrCode(), ErrorCodes.NO_ERROR);
+        Assert.assertEquals(response.getItems().size(), 1);
+        Assert.assertEquals(response.getItems().get("dimension").get(0).getValue().longValue(), 150l);
+    }
+
+    @Test
     public void testGetMultipleMetrics() {
         List<Metrics> metrics = new ArrayList<>();
         Metrics m1 = new Metrics.Builder()
