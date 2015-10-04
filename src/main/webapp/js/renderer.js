@@ -5,7 +5,6 @@
 DataViz = window['DataViz'] || {};
 
 DataViz.DataRenderer = function() {
-	this._context = undefined;
 	this._width = undefined;
 	this._height = undefined;
 	this._screenPoints = [];
@@ -72,23 +71,20 @@ DataViz.DataRenderer.prototype = {
 	
 	_drawDimension: function(key, items) {
 		var color = this._lineColors[key];
-		var ctx = this._context;
-		ctx.beginPath();
-		ctx.strokeStyle = this._convertColor(color);
-		ctx.lineWidth = 1;
 		var verticalScale = this._verticalScale * 0.8;
 		var screenPoints = [];
+		var pathPoints = [];
 		for (var i = 0; i < this._duration; i++) {
 			var xPos = i * this._horizontalScale;
 			var yPos = this._height - items[i].value * verticalScale;
-			if (i == 0) {
-				ctx.moveTo(xPos, yPos);
-			} else {
-				ctx.lineTo(xPos, yPos);
-			}
-			screenPoints.push({'x': xPos, 'y': yPos});
+			var p = {x: xPos, y: yPos};
+			pathPoints.push(p);
+			screenPoints.push(p);
 		}
-		ctx.stroke();
+		this._canvasWrapper.drawPath([pathPoints], {
+			strokeStyle: this._convertColor(color),
+			lineWidth: 1
+		});
 		this._screenPoints[key] = screenPoints;
 	},
 
@@ -114,11 +110,8 @@ DataViz.DataRenderer.prototype = {
 		var min = date.getMinutes();
 		var seconds = date.getSeconds();
 		var durationEach = Math.floor(this._duration / 300);
-
-		var ctx = this._context;
-		ctx.fillStyle = '#fff';
-		ctx.font="11px Verdana";
 		var endPadding = this._horizontalScale * seconds;
+		var textsArr = [];
 		//x axis
 		for (var i = 0; i < 5; i++) {
 			var endPosX = this._width - endPadding - this._horizontalScale * i  * 60 * durationEach;
@@ -140,7 +133,7 @@ DataViz.DataRenderer.prototype = {
 				displayMin = '0' + min1;
 			}
 			var text = displayHour + ':' + displayMin;
-			ctx.fillText(text, endPosX - 30, this._height + 20);
+			textsArr.push({text: text, centerX: endPosX - 30, centerY: this._height + 20});
 		}
 		//y axis
 		var valueEach = this._maxValue / 5;
@@ -148,43 +141,51 @@ DataViz.DataRenderer.prototype = {
 		for (var i = 0; i < 5; i++) {
 			var startY = this._height - this._verticalScale * valueEach * i;
 			var text = Math.round(valueEach * i);
-			ctx.fillText(text, 0, startY + 4);
+			textsArr.push({text: text, centerX: 0, centerY: startY + 4});
 		}
 
+		this._canvasWrapper.drawTexts(textsArr, {
+			fillStyle: '#fff', font: "11px Verdana"
+		});
+
 		//show x,y axis lines
-		ctx.beginPath();
-		ctx.strokeStyle = '#bbbfc2';
-		ctx.lineWidth = 0.6;
 		this._xAxisLines = [];
 		this._yAxisLines = [];
+		var pointsArr = [];
 		for (var i = 0; i < 5; i++) {
 			var endPosX = this._width - endPadding - this._horizontalScale * i  * 60 * durationEach;
 			var startX = endPosX - 20;
 			var startY = this._verticalScale * valueEach;
 			var endX = endPosX - 20;
 			var endY = this._height;
-			ctx.moveTo(endPosX - 20, this._verticalScale * valueEach);
-			ctx.lineTo(endPosX - 20, this._height);
 			this._xAxisLines.push({
 				startX: startX,
 				startY: startY,
 				endX: endX,
 				endY: endY
 			});
+			pointsArr.push([
+				{x: endPosX - 20, y: this._verticalScale * valueEach},
+				{x: endPosX - 20, y: endY}
+			]);
 		}
 		for (var i = 0; i < 5; i++) {
 			var y = this._height - this._verticalScale * valueEach * i;
-			ctx.moveTo(0, y);
-			ctx.lineTo(this._width, y);
 			this._yAxisLines.push({
 				startX: 0,
 				startY: y,
 				endX: this._width,
 				endY: y
 			});
+			pointsArr.push([
+				{x: 0, y: y},
+				{x: this._width, y: y}
+			]);
 		}
-		ctx.stroke();
-		ctx.fillStyle = '#000';
+		this._canvasWrapper.drawPath(pointsArr, {
+			lineWidth: 0.6,
+			strokeStyle: '#bbbfc2'
+		});
 	},
 
 	_createSubtitle: function() {
@@ -296,21 +297,18 @@ DataViz.DataRenderer.prototype = {
 
 	_drawCircle: function(lineKey, center) {
 		$('#metricsCanvas').css('cursor', 'pointer');
-		var ctx = this._context;
-		ctx.beginPath();
-		ctx.globalCompositeOperation="destination-over";
-		ctx.arc(center.x, center.y, 8, 0, 2 * Math.PI, false);
-		ctx.lineWidth = 4;
 		var color = this._lineColors[lineKey];
-        ctx.strokeStyle = this._convertColor(color);
-        ctx.stroke();
-		ctx.fill();
+
+		this._canvasWrapper.drawCircle(center, 8, {
+			lineWidth: 4,
+			fillStyle: '#000',
+			strokeStyle: this._convertColor(color)
+		});
 	},
 
 	_clearCircle: function(index) {
 		this._hideTooltip();
 		$('#metricsCanvas').css('cursor', 'default')
-		var ctx = this._context;
 		//restore line
 		var screenPoints = this._screenPoints[this._pickedLine];
 		var length = screenPoints.length;
@@ -323,33 +321,39 @@ DataViz.DataRenderer.prototype = {
 		var minIndex = (index - delta) < 0 ? 0 : index - delta;
 		var maxIndex = (index + delta) > length - 1 ? length - 1 : index + delta;
 
-		var startX = minIndex * this._horizontalScale;
-		ctx.clearRect(minIndex * this._horizontalScale, 0, (maxIndex - minIndex) * this._horizontalScale, this._height + 10);
+		this._canvasWrapper.clearRect(minIndex * this._horizontalScale, 0, (maxIndex - minIndex) * this._horizontalScale, this._height + 10);
 		//redraw
 		this._restore(minIndex, maxIndex);
 	},
 
 	_restore: function(minIndex, maxIndex) {
-		var ctx = this._context;
 		var startX = minIndex * this._horizontalScale;
 		var endX = maxIndex * this._horizontalScale;
 
 		//restore axis lines
-		ctx.beginPath();
-		ctx.lineWidth = 0.6;
-		ctx.strokeStyle = '#bbbfc2';
+		var pointsArr = [];
 		this._xAxisLines.forEach(function(line) {
 			if (line.startX > startX && line.startX < endX) {
 				//redraw
-				ctx.moveTo(line.startX, line.startY);
-				ctx.lineTo(line.endX, line.endY);
+				pointsArr.push([
+					{x: line.startX, y: line.startY},
+					{x: line.endX, y: line.endY}
+				]);
 			}
 		});
 		this._yAxisLines.forEach(function(line) {
-			ctx.moveTo(startX, line.startY);
-			ctx.lineTo(endX, line.endY);
+			var pointArr = [];
+			pointArr.push({x: line.startX, y: line.startY});
+			pointArr.push({x: line.endX, y: line.endY});
+			pointsArr.push([
+				{x: startX, y: line.startY},
+				{x: endX, y: line.endY}
+			]);
 		});
-		ctx.stroke();
+		this._canvasWrapper.drawPath(pointsArr, {
+			lineWidth: 0.6,
+			strokeStyle: '#bbbfc2'
+		});
 		//restore each dimensions
 		for (var key in this._screenPoints) {
 			if (!this._isAvailableDimention(key)) {
@@ -357,22 +361,18 @@ DataViz.DataRenderer.prototype = {
 			}
 			var points = this._screenPoints[key];
 			var color = this._lineColors[key];
-			ctx.beginPath();
-			ctx.strokeStyle = this._convertColor(color);
-			ctx.lineWidth = 1;
-
+			var pointArr = [];
 			for (var i = minIndex; i <= maxIndex; i++) {
 				var pos = points[i];
 				if (!pos) {
 					continue;
 				}
-				if (i == minIndex) {
-					ctx.moveTo(pos.x, pos.y);
-				} else {
-					ctx.lineTo(pos.x, pos.y);
-				}
+				pointArr.push(pos);
 			}
-			ctx.stroke();
+			this._canvasWrapper.drawPath([pointArr], {
+				lineWidth: 1,
+				strokeStyle: this._convertColor(color)
+			});
 		}
 	},
 
@@ -440,15 +440,13 @@ DataViz.DataRenderer.prototype = {
 	},
 
 	render: function(data, duration, date) {
-		if (!this._context) {
+		if (!this._canvasWrapper) {
 			var canvas = document.getElementById('metricsCanvas');
-			var width = $('.container').width();
-			canvas.width = width;
-			this._context = canvas.getContext('2d');
+			canvas.width = $('.container').width();
 			this._width = canvas.width;
 			this._height = canvas.height - 20;
+			this._canvasWrapper = new DataViz.CanvasWrapper(canvas);
 		}
-		this._context.globalCompositeOperation = 'source-over';
 		this.clear();
 		if (date) {
 			this._currentDate = date;
@@ -462,8 +460,8 @@ DataViz.DataRenderer.prototype = {
 	},
 
 	clear: function() {
-		if (this._context) {
-			this._context.clearRect(0, 0, this._width, this._height + 20);
+		if (this._canvasWrapper) {
+			this._canvasWrapper.clearAll();
 		}
 	}
 }
