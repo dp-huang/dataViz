@@ -6,11 +6,15 @@ DataViz = window['DataViz'] || {};
 
 DataViz.PageEvent = function() {
 	this._init();
-	this._renderer;
+	this._renderer = undefined;
+	this._options = {
+		interval: 1
+	};
 }
 
 DataViz.PageEvent.prototype = {
 	_init: function() {
+		this._options = {};
 		this._registerEvent();
 		this._initialRequest();
 	},
@@ -41,6 +45,25 @@ DataViz.PageEvent.prototype = {
 			if (me._renderer) {
 				me._renderer.pick(pos);
 			}
+		});
+
+		//register events on options
+		$('#options [name=connected]').change(function(e) {
+			var isChecked = $(this).is(':checked');
+			me._options['connected'] = isChecked;
+			me._render();
+		});
+
+		$('#options .interval').change(function(e) {
+			var interval = $(this).val();
+			me._options['interval'] = interval;
+			me._refreshDashboard(me._duration);
+		});
+
+		$('#options .aggregation').change(function(e) {
+			var agg = $(this).val();
+			me._options['aggregation'] = agg;
+			me._refreshDashboard(me._duration);
 		});
 	},
 
@@ -73,16 +96,21 @@ DataViz.PageEvent.prototype = {
 	_refreshDashboard: function(duration) {
 		this._duration = duration;
 		var me = this;
-		var url = DataViz.Connection.buildUrl(duration);
+		var url = DataViz.Connection.buildUrl(duration, this._options['interval'], this._options['aggregation']);
 		DataViz.Connection.requestGet(url).then(function(e) {
 			if (e.errCode != 0) {
 				alert('get data error from server');
 			} else {
 				if (me._renderer) {
-					me._renderer.render(e.items, duration, new Date());
+					me._renderer.render(e.items, duration, new Date(), me._options);
 				}
 			}
 		});
+	},
+	_render: function() {
+		if (this._renderer) {
+			this._renderer.renderWithOptions(this._options);
+		}
 	},
 	registerRenderer: function(renderer) {
 		this._renderer = renderer;

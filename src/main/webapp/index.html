@@ -1,4 +1,4 @@
-
+ 
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -53,12 +53,28 @@
 
     <div class="container">
 
-      <canvas id="metricsCanvas" width="100%" height="500"></canvas>
+      <canvas id="metricsCanvas" width="100%" height="450"></canvas>
       <div id="metricsTooltip">
         <span></span>
       </div>
-      <div id="subtitle"></div>
-
+      <div id="subtitleContainer">
+        <div id="subtitle"></div>
+      </div>
+      <div id="options">
+        <input type="checkbox" name="connected"/><span>Connect Non-Zero Data</span>
+        <select class="interval">
+            <option value="1">1s</option>
+            <option value="5">5s</option>
+            <option value="10">10s</option>
+        </select>
+        <span>Metrics Sample Interval</span>
+        <select class="aggregation">
+            <option value="max">Maximum</option>
+            <option value="sum">Sum</option>
+            <option value="average">Average</option>
+        </select>
+        <span>Metrics Aggregation Mode</span>
+      </div>
     </div><!-- /.container -->
 
 

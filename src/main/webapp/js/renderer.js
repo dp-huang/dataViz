@@ -49,7 +49,7 @@ DataViz.DataRenderer.prototype = {
 			});
 		}
 		this._maxValue = maxValue;
-		this._verticalScale =  this._height / maxValue;
+		this._verticalScale =  this._height * 0.9/ maxValue;
 		this._horizontalScale = this._width / this._duration;
 	},
 
@@ -71,15 +71,24 @@ DataViz.DataRenderer.prototype = {
 	
 	_drawDimension: function(key, items) {
 		var color = this._lineColors[key];
-		var verticalScale = this._verticalScale * 0.8;
+		var verticalScale = this._verticalScale;
 		var screenPoints = [];
-		var pathPoints = [];
-		for (var i = 0; i < this._duration; i++) {
-			var xPos = i * this._horizontalScale;
+		
+		for (var i = 0, len = items.length; i < len; i++) {
+			var xPos = i * this._horizontalScale * this._interval;
 			var yPos = this._height - items[i].value * verticalScale;
-			var p = {x: xPos, y: yPos};
-			pathPoints.push(p);
-			screenPoints.push(p);
+			screenPoints.push({x: xPos, y: yPos});
+		}
+		var pathPoints = [];
+		var me = this;
+		if (this._options && this._options.connected) {
+			screenPoints.forEach(function(p) {
+				if (p.y < me._height) {
+					pathPoints.push(p);
+				}
+			});
+		} else {
+			pathPoints = screenPoints.slice(0);
 		}
 		this._canvasWrapper.drawPath([pathPoints], {
 			strokeStyle: this._convertColor(color),
@@ -102,6 +111,20 @@ DataViz.DataRenderer.prototype = {
 			}
 			this._drawDimension(key, data[key], this._duration);
 		}
+	},
+
+	_showYAxisTexts: function() {
+		var valueEach = this._maxValue / 5;
+		var textsArr = [];
+		for (var i = 0; i <= 5; i++) {
+			var startY = this._height - this._verticalScale * valueEach * i;
+			var text = Math.round(valueEach * i);
+			textsArr.push({text: text, centerX: 0, centerY: startY + 4});
+		}
+
+		this._canvasWrapper.drawTexts(textsArr, {
+			fillStyle: '#fff', font: "11px Verdana"
+		});
 	},
 
 	_showAxis: function() {
@@ -135,27 +158,25 @@ DataViz.DataRenderer.prototype = {
 			var text = displayHour + ':' + displayMin;
 			textsArr.push({text: text, centerX: endPosX - 30, centerY: this._height + 20});
 		}
-		//y axis
-		var valueEach = this._maxValue / 5;
-
-		for (var i = 0; i < 5; i++) {
-			var startY = this._height - this._verticalScale * valueEach * i;
-			var text = Math.round(valueEach * i);
-			textsArr.push({text: text, centerX: 0, centerY: startY + 4});
-		}
-
 		this._canvasWrapper.drawTexts(textsArr, {
 			fillStyle: '#fff', font: "11px Verdana"
 		});
 
+		//y axis
+		this._showYAxisTexts();
+		var valueEach = this._maxValue / 5;
+
 		//show x,y axis lines
+		if (this._verticalScale === Infinity) {
+			return;
+		}
 		this._xAxisLines = [];
 		this._yAxisLines = [];
 		var pointsArr = [];
-		for (var i = 0; i < 5; i++) {
+		for (var i = 0; i <= 5; i++) {
 			var endPosX = this._width - endPadding - this._horizontalScale * i  * 60 * durationEach;
 			var startX = endPosX - 20;
-			var startY = this._verticalScale * valueEach;
+			var startY = this._height * 0.1;
 			var endX = endPosX - 20;
 			var endY = this._height;
 			this._xAxisLines.push({
@@ -165,11 +186,11 @@ DataViz.DataRenderer.prototype = {
 				endY: endY
 			});
 			pointsArr.push([
-				{x: endPosX - 20, y: this._verticalScale * valueEach},
+				{x: endPosX - 20, y: startY},
 				{x: endPosX - 20, y: endY}
 			]);
 		}
-		for (var i = 0; i < 5; i++) {
+		for (var i = 0; i <= 5; i++) {
 			var y = this._height - this._verticalScale * valueEach * i;
 			this._yAxisLines.push({
 				startX: 0,
@@ -211,7 +232,7 @@ DataViz.DataRenderer.prototype = {
 					me._dimentionFilter[key] = false;
 				}
 				//refresh dashboard
-				me.render(me._initialData, me._duration);
+				me._render();
 			});
 			$('#subtitle').append(keySpan);
 		}
@@ -314,21 +335,22 @@ DataViz.DataRenderer.prototype = {
 		var length = screenPoints.length;
 
 		var delta = Math.floor(10 / this._horizontalScale);
-		if (delta < 30) {
-			delta = 30;
+		if (delta < 15) {
+			delta = 15;
 		}
 
 		var minIndex = (index - delta) < 0 ? 0 : index - delta;
 		var maxIndex = (index + delta) > length - 1 ? length - 1 : index + delta;
 
-		this._canvasWrapper.clearRect(minIndex * this._horizontalScale, 0, (maxIndex - minIndex) * this._horizontalScale, this._height + 10);
+		this._canvasWrapper.clearRect(minIndex * this._horizontalScale * this._interval, 0, (maxIndex - minIndex) * this._horizontalScale * this._interval, this._height + 10);
 		//redraw
 		this._restore(minIndex, maxIndex);
 	},
 
 	_restore: function(minIndex, maxIndex) {
-		var startX = minIndex * this._horizontalScale;
-		var endX = maxIndex * this._horizontalScale;
+		var me = this;
+		var startX = minIndex * this._horizontalScale * this._interval;
+		var endX = maxIndex * this._horizontalScale * this._interval;
 
 		//restore axis lines
 		var pointsArr = [];
@@ -342,9 +364,6 @@ DataViz.DataRenderer.prototype = {
 			}
 		});
 		this._yAxisLines.forEach(function(line) {
-			var pointArr = [];
-			pointArr.push({x: line.startX, y: line.startY});
-			pointArr.push({x: line.endX, y: line.endY});
 			pointsArr.push([
 				{x: startX, y: line.startY},
 				{x: endX, y: line.endY}
@@ -354,6 +373,9 @@ DataViz.DataRenderer.prototype = {
 			lineWidth: 0.6,
 			strokeStyle: '#bbbfc2'
 		});
+		if (minIndex <= 0) {
+			this._showYAxisTexts();
+		}
 		//restore each dimensions
 		for (var key in this._screenPoints) {
 			if (!this._isAvailableDimention(key)) {
@@ -369,11 +391,64 @@ DataViz.DataRenderer.prototype = {
 				}
 				pointArr.push(pos);
 			}
-			this._canvasWrapper.drawPath([pointArr], {
+			//connected option
+			var pathPoints = [];
+			if (this._options && this._options.connected) {
+				if (points[minIndex].y == this._height) {
+					var intersect = this._intersection(minIndex, 0, points.length - 1, this._height, points);
+					if (intersect) {
+						pathPoints.push(intersect);
+					}
+				}
+				pointArr.forEach(function(p) {
+					if (p.y < me._height) {
+						pathPoints.push(p);
+					}
+				});
+				if (points[maxIndex].y == this._height) {
+					var intersect = this._intersection(maxIndex, 0, points.length - 1, this._height, points);
+					if (intersect) {
+						pathPoints.push(intersect);
+					}
+				}
+			} else {
+				pathPoints = pointArr;
+			}
+			this._canvasWrapper.drawPath([pathPoints], {
 				lineWidth: 1,
 				strokeStyle: this._convertColor(color)
 			});
 		}
+	},
+
+
+	_intersection: function(index, minIndex, maxIndex, maxHeight, points) {
+		var tmpIndex;
+		tmpIndex = index;
+		while(tmpIndex-- >= 1) {
+			if (points[tmpIndex].y < maxHeight) {
+				break;
+			}
+		}
+		var index1 = tmpIndex;
+		if (index1 < 0) {
+			return undefined;
+		}
+		tmpIndex = index;
+		while(tmpIndex++ < maxIndex) {
+			if (points[tmpIndex].y < maxHeight) {
+				break;
+			}
+		}
+		var index2 = tmpIndex;
+		if (index2 > maxIndex) {
+			return undefined;
+		}
+		if (index1 == index2) {
+			return points[index1];
+		}
+		var y = (points[index2].y - points[index1].y) * (points[index].x - points[index1].x) / (points[index2].x - points[index1].x) + points[index1].y;
+		return {x: points[index].x, y: y};
 	},
 
 	_dateToStr: function(date) {
@@ -439,7 +514,15 @@ DataViz.DataRenderer.prototype = {
 		this._showTooltip(point);
 	},
 
-	render: function(data, duration, date) {
+	_render: function() {
+		this.render(this._initialData, this._duration, undefined, this._options);
+	},
+
+	renderWithOptions: function(options) {
+		this.render(this._initialData, this._duration, undefined, options);
+	},
+
+	render: function(data, duration, date, options) {
 		if (!this._canvasWrapper) {
 			var canvas = document.getElementById('metricsCanvas');
 			canvas.width = $('.container').width();
@@ -450,6 +533,10 @@ DataViz.DataRenderer.prototype = {
 		this.clear();
 		if (date) {
 			this._currentDate = date;
+		}
+		if (options) {
+			this._options = options;
+			this._interval = options['interval'];
 		}
 		this._duration = duration;
 		this._initialData = data;

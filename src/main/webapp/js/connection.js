@@ -6,11 +6,17 @@ DataViz = window['DataViz'] || {};
 
 DataViz.Connection = {
 	
-	buildUrl: function(duration) {
+	buildUrl: function(duration, interval, aggregation) {
 		var now = Math.round(new Date().getTime() / 1000);
 		var start = now - duration;
 		var defaultInterval = 1;
-		var url = '/api/metrics/metric?start=' + start + '&end=' + now + '&interval=' + defaultInterval;
+		if (!interval) {
+			interval = defaultInterval;
+		}
+		if (!aggregation) {
+			aggregation = 'max';
+		}
+		var url = '/api/metrics/metric?start=' + start + '&end=' + now + '&interval=' + interval + '&agg=' + aggregation;
 		return url;
 	},
 
