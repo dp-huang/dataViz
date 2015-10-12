@@ -20,15 +20,15 @@ DataViz.DataRenderer = function() {
 	];
 	this._lineColors = {};
 	this._screenPoints = {};
-	this._dimentionFilter = {};
+	this._dimensionFilter = {};
 	this._xAxisLines = [];
 	this._yAxisLines = [];
 }
 
 DataViz.DataRenderer.prototype = {
 
-	_isAvailableDimention: function(key) {
-		var value = this._dimentionFilter[key];
+	_isAvailableDimension: function(key) {
+		var value = this._dimensionFilter[key];
 		if (value === true || value === undefined) {
 			return true;
 		}
@@ -38,7 +38,7 @@ DataViz.DataRenderer.prototype = {
 	_process: function(data) {
 		var maxValue = 0;
 		for (var key in data) {
-			if (!this._isAvailableDimention(key)) {
+			if (!this._isAvailableDimension(key)) {
 				continue;
 			}
 			var items = data[key];
@@ -106,7 +106,7 @@ DataViz.DataRenderer.prototype = {
 				this._lineColors[key] = this._createRandomColor();
 			}
 			index++;
-			if (!this._isAvailableDimention(key)) {
+			if (!this._isAvailableDimension(key)) {
 				continue;
 			}
 			this._drawDimension(key, data[key], this._duration);
@@ -218,7 +218,7 @@ DataViz.DataRenderer.prototype = {
 			var lineDiv = $('<div></div>').addClass('line').css('border-top-color', color);
 			$('#subtitle').append(lineDiv);
 			var keySpan = $('<span></span>').text(key).css('color', color).attr('key', key);
-			if (this._dimentionFilter[key] === false) {
+			if (this._dimensionFilter[key] === false) {
 				keySpan.css('color', '#7f7f7f');
 			} else {
 				keySpan.css('color', color);
@@ -226,10 +226,10 @@ DataViz.DataRenderer.prototype = {
 			keySpan.click(function(e) {
 				var target = e.currentTarget;
 				var key = $(target).attr('key');
-				if (me._dimentionFilter[key] === false) {
-					me._dimentionFilter[key] = true;
+				if (me._dimensionFilter[key] === false) {
+					me._dimensionFilter[key] = true;
 				} else {
-					me._dimentionFilter[key] = false;
+					me._dimensionFilter[key] = false;
 				}
 				//refresh dashboard
 				me._render();
@@ -297,7 +297,7 @@ DataViz.DataRenderer.prototype = {
 		var lineKey = '';
 		var index = -1;
 		for (var key in this._screenPoints) {
-			if (!this._isAvailableDimention(key)) {
+			if (!this._isAvailableDimension(key)) {
 				continue;
 			}
 			var result = this._getSingleLinePickPoint(pos, this._screenPoints[key]);
@@ -378,7 +378,7 @@ DataViz.DataRenderer.prototype = {
 		}
 		//restore each dimensions
 		for (var key in this._screenPoints) {
-			if (!this._isAvailableDimention(key)) {
+			if (!this._isAvailableDimension(key)) {
 				continue;
 			}
 			var points = this._screenPoints[key];
@@ -394,7 +394,7 @@ DataViz.DataRenderer.prototype = {
 			//connected option
 			var pathPoints = [];
 			if (this._options && this._options.connected) {
-				if (points[minIndex].y == this._height) {
+				if (points[minIndex] && points[minIndex].y == this._height) {
 					var intersect = this._intersection(minIndex, 0, points.length - 1, this._height, points);
 					if (intersect) {
 						pathPoints.push(intersect);
@@ -405,7 +405,7 @@ DataViz.DataRenderer.prototype = {
 						pathPoints.push(p);
 					}
 				});
-				if (points[maxIndex].y == this._height) {
+				if (points[maxIndex] && points[maxIndex].y == this._height) {
 					var intersect = this._intersection(maxIndex, 0, points.length - 1, this._height, points);
 					if (intersect) {
 						pathPoints.push(intersect);
